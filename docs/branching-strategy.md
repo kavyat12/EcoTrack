@@ -1,22 +1,64 @@
-# EcoTrack Branching Strategy
+# 
 
-## Main Branch
-The main branch contains the stable version of the project.
+# \# EcoTrack - Git Branching Strategy
 
-## Feature Branches
-- feature/waste-reporting: Developer 1
-- feature/waste-categories: Developer 2
-- feature/collection-tracking: Developer 3
+# 
 
-## Workflow
-1. Developers create feature branches from main.
-2. Each developer works independently.
-3. Changes are committed with meaningful commit messages.
-4. Completed features are merged into main.
-5. Merge conflicts are resolved before completing the merge.
+# \## Main Branch
 
-## Commit Message Convention
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation changes
-- chore: Project setup
+# The main branch contains stable and tested project code.
+
+# 
+
+# \## Feature Branches
+
+# Each developer works on a separate feature branch.
+
+# 
+
+# \- feature/waste-reporting
+
+# \- feature/collection-tracking
+
+# 
+
+# \## Team Responsibilities
+
+# \- Developer 1: Team lead, reviews and merges code.
+
+# \- Developer 2: Develops waste reporting.
+
+# \- Developer 3: Develops collection tracking.
+
+# 
+
+# \## Development Workflow
+
+# 1\. Create a feature branch from main.
+
+# 2\. Develop the assigned feature.
+
+# 3\. Stage changes using git add.
+
+# 4\. Commit changes with meaningful messages.
+
+# 5\. Merge completed features into main.
+
+# 6\. Resolve merge conflicts if necessary.
+
+# 7\. Push changes to GitHub.
+
+# 
+
+# \## Commit Message Convention
+
+# \- feat: New feature
+
+# \- fix: Bug fix
+
+# \- docs: Documentation
+
+# \- chore: Project maintenance
+
+# 
+
