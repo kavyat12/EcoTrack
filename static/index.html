@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f3">
+    <meta name="description" content="Track your household's waste, carbon footprint, and sustainability progress with EcoTrack.">
+    <title>EcoTrack — your impact, made visible</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <section class="auth-screen" id="auth-screen" aria-live="polite"></section>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="/" aria-label="EcoTrack home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><path d="M25.6 6.4C15 6.4 8.1 10.8 8.1 18.1c0 3.7 2.8 6.2 6.1 6.2 7.6 0 11.4-7.9 11.4-17.9Z" fill="currentColor"/><path d="M6.5 26.4c3-6.7 7.2-10.2 13.2-13.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <span class="brand-copy"><strong>ecotrack</strong><small>PERSONAL SUSTAINABILITY</small></span>
+      </a>
+      <div class="nav-label">YOUR WORKSPACE</div>
+      <nav class="navigation" aria-label="Main navigation">
+        <button class="nav-item active" type="button" data-page="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="10.5" width="7" height="10" rx="1.5"/><rect x="3.5" y="12.5" width="7" height="8" rx="1.5"/></svg></span>Overview</button>
+        <button class="nav-item" type="button" data-page="waste"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></span>Waste log</button>
+        <button class="nav-item" type="button" data-page="carbon"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12.4 21c-4.9 0-8.2-3.5-8.2-8.3 0-4.3 3.4-8.1 9.2-9.7-.5 3.3.8 4.7 3.1 6.2 2.1 1.4 3.3 3.1 3.3 5.3A6.5 6.5 0 0 1 13.2 21"/><path d="M12.5 21c-2.2-2.1-1.6-5.2 1.2-7.8.2 2.1 2.1 2.7 2.1 4.5a3.3 3.3 0 0 1-3.3 3.3Z"/></svg></span>Carbon footprint</button>
+        <button class="nav-item" type="button" data-page="recycling"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m7 7 2-3h6l2 3m-10 0h12l-1 13H8L7 7Z"/><path d="m10 11 2 2 3-3"/></svg></span>Recycling</button>
+        <button class="nav-item" type="button" data-page="analytics"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="m7 15 4-4 3 2 5-6"/></svg></span>Reports & analytics</button>
+        <div class="nav-label nav-label-spaced">COMMUNITY</div>
+        <button class="nav-item" type="button" data-page="reports"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 21s7.5-3.8 7.5-10.1V5.3L12 2.5 4.5 5.3v5.6C4.5 17.2 12 21 12 21Z"/><path d="M12 8v4m0 3h.01"/></svg></span>Waste reports</button>
+        <button class="nav-item" type="button" data-page="collections"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7.5" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/></svg></span>Collections</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note">
+          <span class="note-leaf" aria-hidden="true">✳</span>
+          <strong>Progress, not perfection.</strong>
+          <span>Small, consistent choices add up to a lighter footprint.</span>
+        </div>
+        <div class="profile profile-clickable">
+          <button class="profile-button" type="button" data-page="profile" aria-label="Open profile settings">
+            <span class="avatar" id="profile-avatar">ET</span>
+            <span class="profile-copy"><strong id="profile-name">Your profile</strong><span id="profile-email">Account settings</span></span>
+          </button>
+          <button class="signout-button" id="signout-button" type="button" aria-label="Sign out" title="Sign out"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5m5 5H3m9-9h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></svg></button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" type="button" aria-label="Open navigation"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div class="breadcrumbs">EcoTrack <span>/</span> <strong id="breadcrumb">Overview</strong></div>
+        <div class="topbar-right">
+          <span class="local-status"><span></span> PRIVATE WORKSPACE</span>
+          <button class="button button-primary button-small" id="topbar-action" type="button" data-action="waste"><span aria-hidden="true">＋</span> Log activity</button>
+        </div>
+      </header>
+      <div class="page-content" id="page-content" aria-live="polite">
+        <div class="loading-state"><span class="spinner"></span> Preparing your personal dashboard…</div>
+      </div>
+      <footer class="footer"><span>Better choices, one day at a time.</span><span>EcoTrack <span id="current-year"></span> <span class="footer-dot">·</span> Your data stays on this device</span></footer>
+    </main>
+    <div class="toast-region" id="toast-region" aria-live="assertive"></div>
+    <div class="modal-backdrop" id="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-head"><div><span class="eyebrow">YOUR ECO JOURNEY</span><h2 id="modal-title"></h2></div><button class="icon-button" id="modal-close" type="button" aria-label="Close dialog">×</button></div>
+        <div id="modal-content"></div>
+      </section>
+    </div>
+  </body>
+</html>
