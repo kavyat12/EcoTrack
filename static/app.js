@@ -113,7 +113,7 @@ async function bootstrap() {
   try {
     const result = await api("/api/auth/me");
     if (!result.user) {
-      showAuth("login");
+      showAuth(result.registration_required ? "register" : "login");
       return;
     }
     state.user = result.user;
@@ -161,8 +161,9 @@ function render() {
   const titles = {
     dashboard: "Overview", waste: "Waste log", carbon: "Carbon footprint",
     recycling: "Recycling", analytics: "Reports & analytics", reports: "Waste reports",
-    collections: "Collections", profile: "Profile settings",
+    recommendations: "Eco recommendations", collections: "Collections", profile: "Settings",
   };
+  if (!state.user || !state.dashboard) return;
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("active", item.dataset.page === state.page);
   });
@@ -175,11 +176,13 @@ function render() {
     carbon: "Log emissions", reports: "New report", collections: "Schedule pickup",
   };
   action.lastChild.textContent = ` ${actionNames[state.page] || "Log activity"}`;
+  updateNotifications();
   if (state.page === "dashboard") renderDashboard();
   else if (state.page === "waste") renderWaste();
   else if (state.page === "carbon") renderCarbon();
   else if (state.page === "recycling") renderRecycling();
   else if (state.page === "analytics") renderAnalytics();
+  else if (state.page === "recommendations") renderRecommendations();
   else if (state.page === "reports") renderReports();
   else if (state.page === "collections") renderCollections();
   else if (state.page === "profile") renderProfile();
@@ -236,6 +239,39 @@ function renderDashboard() {
     <p class="estimate-note">Carbon figures are estimates using average activity factors. Your sustainability score is a personal progress indicator, not an official rating.</p>`;
 }
 
+function updateNotifications() {
+  const count = state.dashboard.summary.open_reports + state.dashboard.summary.active_collections;
+  const badge = document.getElementById("notification-count");
+  badge.hidden = count === 0;
+  badge.textContent = count > 9 ? "9+" : String(count);
+  const items = state.dashboard.recent_activities.slice(0, 3).map((activity) => {
+    const label = activity.kind === "carbon"
+      ? activityLabels[activity.title] || activity.title
+      : activity.title;
+    return `<div class="notification-item"><span class="notification-item-icon ${activity.kind === "carbon" ? "activity-carbon" : "activity-waste"}">${activity.kind === "carbon" ? "↗" : "♧"}</span><span><strong>${escapeHtml(label)}</strong><small>${formatDate(activity.created_at)} · ${formatNumber(activity.quantity)} ${activity.kind === "carbon" ? "kg CO₂e" : "kg"}</small></span></div>`;
+  }).join("");
+  const community = count
+    ? `<div class="notification-community"><strong>${count} community ${count === 1 ? "item needs" : "items need"} attention</strong><small>${state.dashboard.summary.open_reports} open reports · ${state.dashboard.summary.active_collections} active pickups</small><button type="button" data-page="reports">View community updates →</button></div>`
+    : "";
+  document.getElementById("notification-popover").innerHTML = `<div class="popover-heading"><strong>Notifications</strong><span>${items ? "Recent activity" : "You're all caught up"}</span></div>${community}${items || '<div class="popover-empty">Your latest recorded activity will appear here.</div>'}`;
+}
+
+function renderRecommendations() {
+  const ideas = state.dashboard.recommendations;
+  const cards = ideas.map((idea, index) => `
+    <article class="idea-card"><span class="idea-number">0${index + 1}</span><div class="idea-card-content"><span class="eyebrow">PERSONALIZED NEXT STEP</span><h2>${escapeHtml(idea.title)}</h2><p>${escapeHtml(idea.detail)}</p><button class="button button-secondary" type="button" data-recommendation="${escapeHtml(idea.action)}">${escapeHtml(idea.action)} <span aria-hidden="true">→</span></button></div></article>`).join("");
+  const typeCards = [
+    ["Everyday habits", "Start with small changes to shopping, packaging, and food planning.", "Cut waste before it starts", "♧"],
+    ["Smarter recycling", `${formatNumber(state.dashboard.summary.diversion_rate, 0)}% of your logged waste is currently marked recycled. Check local collection rules.`, "Explore recycling", "⟳"],
+    ["Lower-carbon travel", "Try logging a commute or choosing a lower-impact option for one short journey.", "Log an activity", "↗"],
+  ].map(([label, detail, action, icon]) => `<article class="recommendation-category"><span class="recommendation-category-icon">${icon}</span><div><h3>${label}</h3><p>${detail}</p><button class="text-button" type="button" data-recommendation="${action}">${action} →</button></div></article>`).join("");
+  pageContent.innerHTML = `${heading("SMALL STEPS, REAL MOMENTUM", "Ideas for a lighter footprint", "Practical suggestions based on the waste and activities you’ve logged.", "")}
+    <div class="recommendations-intro"><span class="idea-spark">✳</span><span><strong>Made for your eco journey</strong><small>These suggestions use your own recorded activity. They’re prompts, not promises of impact.</small></span></div>
+    <section class="recommendation-feature-grid">${cards}</section>
+    <section class="panel recommendation-categories-panel"><div class="panel-header"><div><h2 class="panel-title">Choose a place to start</h2><div class="panel-subtitle">A few low-pressure ways to make progress</div></div></div><div class="recommendation-category-grid">${typeCards}</div></section>
+    <p class="estimate-note">Environmental outcomes depend on local infrastructure, personal circumstances, and the materials involved. Start with what’s practical for you.</p>`;
+}
+
 function renderTrendChart(monthly) {
   const width = 620;
   const height = 190;
@@ -263,7 +299,7 @@ function renderWaste() {
   const rows = state.waste.map((item) => `
     <tr><td><span class="category-cell"><span class="category-dot" style="background:${escapeHtml(item.category_color)}"></span>${escapeHtml(item.category)}</span></td>
       <td class="table-number">${formatNumber(item.weight_kg)} kg</td><td class="table-number">${formatNumber(item.recycled_kg)} kg</td><td>${escapeHtml(item.note || "—")}</td><td>${formatDate(item.created_at)}</td>
-      <td><button class="row-delete" type="button" data-delete-type="waste" data-delete-id="${item.id}" aria-label="Delete ${escapeHtml(item.category)} entry">×</button></td></tr>`).join("");
+      <td><span class="row-actions"><button class="row-edit" type="button" data-edit-waste="${item.id}" aria-label="Edit ${escapeHtml(item.category)} entry">Edit</button><button class="row-delete" type="button" data-delete-type="waste" data-delete-id="${item.id}" aria-label="Delete ${escapeHtml(item.category)} entry">×</button></span></td></tr>`).join("");
   const body = rows ? `<div class="toolbar"><span class="record-count">${state.waste.length} ${state.waste.length === 1 ? "entry" : "entries"}</span><span class="toolbar-spacer"></span><span class="form-hint">Only you can see your personal records.</span></div><div class="table-wrap"><table><thead><tr><th>CATEGORY</th><th>WASTE</th><th>RECYCLED</th><th>NOTE</th><th>DATE</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` :
     emptyState("♧", "Your waste log is ready", "Record waste by material and note how much you recycled. Your entries stay private to your account.", '<button class="button button-primary" type="button" data-action="waste">＋ Log household waste</button>');
   pageContent.innerHTML = `${heading("WASTE MANAGEMENT", "Your waste log", "Keep track of waste generated and the materials you keep in circulation.", `<button class="button button-primary" type="button" data-action="waste">＋ Log waste</button>`)}
@@ -369,24 +405,30 @@ function renderProfile() {
     <section class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Your privacy matters</strong><p>EcoTrack stores your account and impact logs in a local SQLite database. Passwords are stored as salted, slow hashes. Keep your device secure and back up your data directory if needed.</p></div></section>`;
 }
 
-function openModal(type) {
+function openModal(type, entryId = null) {
   const titles = {
     waste: "Log household waste", carbon: "Log a carbon activity",
     report: "Report neighborhood waste", collection: "Schedule a collection",
+    "edit-waste": "Edit waste entry",
   };
   modalTitle.textContent = titles[type] || titles.waste;
+  const entry = type === "edit-waste" ? state.waste.find((item) => item.id === Number(entryId)) : null;
+  if (type === "edit-waste" && !entry) {
+    toast("This waste entry is no longer available.", true);
+    return;
+  }
   const categoryOptions = state.categories.map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
   const reportOptions = state.reports.filter((item) => item.status !== "resolved")
     .map((item) => `<option value="${item.id}">${escapeHtml(item.title)}</option>`).join("");
   let form;
-  if (type === "waste") {
-    form = `<form id="action-form" data-form-type="waste"><div class="form-grid">
+  if (type === "waste" || type === "edit-waste") {
+    form = `<form id="action-form" data-form-type="${type}" data-entry-id="${entry?.id || ""}"><div class="form-grid">
       <label class="form-field"><span>Waste category</span><select name="category_id" required><option value="">Choose category</option>${categoryOptions}</select></label>
-      <label class="form-field"><span>Total amount (kg)</span><input name="weight_kg" type="number" min="0.01" max="100000" step="0.01" placeholder="e.g. 2.5" required></label>
-      <label class="form-field"><span>Amount recycled (kg)</span><input name="recycled_kg" type="number" min="0" max="100000" step="0.01" value="0" required><small>Cannot be greater than total waste.</small></label>
+      <label class="form-field"><span>Total amount (kg)</span><input name="weight_kg" type="number" min="0.01" max="100000" step="0.01" placeholder="e.g. 2.5" value="${entry ? entry.weight_kg : ""}" required></label>
+      <label class="form-field"><span>Amount recycled (kg)</span><input name="recycled_kg" type="number" min="0" max="100000" step="0.01" value="${entry ? entry.recycled_kg : "0"}" required><small>Cannot be greater than total waste.</small></label>
       <label class="form-field"><span>Date</span><input type="text" value="${formatDate(new Date().toISOString())}" disabled></label>
-      <label class="form-field form-field-full"><span>Note <small>(optional)</small></span><input name="note" maxlength="300" placeholder="A short note to help you remember"></label>
-    </div><p class="form-error" hidden></p><div class="form-actions"><button class="button button-secondary" type="button" data-close-modal>Cancel</button><button class="button button-primary" type="submit">Save waste entry</button></div></form>`;
+      <label class="form-field form-field-full"><span>Note <small>(optional)</small></span><input name="note" maxlength="300" placeholder="A short note to help you remember" value="${escapeHtml(entry?.note || "")}"></label>
+    </div><p class="form-error" hidden></p><div class="form-actions"><button class="button button-secondary" type="button" data-close-modal>Cancel</button><button class="button button-primary" type="submit">${entry ? "Save changes" : "Save waste entry"}</button></div></form>`;
   } else if (type === "carbon") {
     form = `<form id="action-form" data-form-type="carbon"><div class="form-grid">
       <label class="form-field form-field-full"><span>Activity</span><select name="activity_type" id="carbon-activity-type" required>
@@ -412,6 +454,9 @@ function openModal(type) {
     </div><p class="form-error" hidden></p><div class="form-actions"><button class="button button-secondary" type="button" data-close-modal>Cancel</button><button class="button button-primary" type="submit">Schedule pickup</button></div></form>`;
   }
   modalContent.innerHTML = form;
+  if (entry && type === "edit-waste") {
+    modalContent.querySelector('[name="category_id"]').value = String(entry.category_id);
+  }
   modalBackdrop.hidden = false;
   document.body.style.overflow = "hidden";
   modalContent.querySelector("input,select")?.focus();
@@ -433,8 +478,8 @@ function toast(message, error = false) {
 async function submitActivityForm(form) {
   const type = form.dataset.formType;
   const data = Object.fromEntries(new FormData(form));
-  const endpoints = { waste: "/api/waste", carbon: "/api/carbon", report: "/api/reports", collection: "/api/collections" };
-  if (type === "waste") data.category_id = Number(data.category_id);
+  const endpoints = { waste: "/api/waste", "edit-waste": `/api/waste/${form.dataset.entryId}`, carbon: "/api/carbon", report: "/api/reports", collection: "/api/collections" };
+  if (type === "waste" || type === "edit-waste") data.category_id = Number(data.category_id);
   if (type === "carbon") data.quantity = Number(data.quantity);
   if (type === "report") data.category = Number(data.category);
   if (type === "collection" && data.report_id) data.report_id = Number(data.report_id);
@@ -445,11 +490,14 @@ async function submitActivityForm(form) {
   const errorElement = form.querySelector(".form-error");
   errorElement.hidden = true;
   try {
-    await api(endpoints[type], { method: "POST", body: JSON.stringify(data) });
+    await api(endpoints[type], {
+      method: type === "edit-waste" ? "PATCH" : "POST",
+      body: JSON.stringify(data),
+    });
     closeModal();
     await refresh();
     toast({
-      waste: "Waste entry saved.", carbon: "Activity saved and emissions estimated.",
+      waste: "Waste entry saved.", "edit-waste": "Waste entry updated.", carbon: "Activity saved and emissions estimated.",
       report: "Community report submitted.", collection: "Pickup scheduled.",
     }[type]);
   } catch (error) {
@@ -472,6 +520,18 @@ async function updateStatus(resource, id, status, control) {
     control.value = "";
     toast(error.message, true);
   }
+}
+
+function togglePopover(popoverId, buttonId) {
+  const popover = document.getElementById(popoverId);
+  const button = document.getElementById(buttonId);
+  const opening = popover.hidden;
+  document.querySelectorAll(".topbar-popover").forEach((item) => { item.hidden = true; });
+  document.querySelectorAll("#notification-button, #profile-menu-button").forEach((item) => {
+    item.setAttribute("aria-expanded", "false");
+  });
+  popover.hidden = !opening;
+  button.setAttribute("aria-expanded", String(opening));
 }
 
 async function deleteEntry(type, id) {
@@ -542,6 +602,14 @@ function filterReports() {
 
 document.addEventListener("click", (event) => {
   const target = event.target;
+  if (target.closest("#notification-button")) {
+    togglePopover("notification-popover", "notification-button");
+    return;
+  }
+  if (target.closest("#profile-menu-button")) {
+    togglePopover("profile-popover", "profile-menu-button");
+    return;
+  }
   const authMode = target.closest("[data-auth-mode]");
   if (authMode) {
     showAuth(authMode.dataset.authMode);
@@ -551,6 +619,10 @@ document.addEventListener("click", (event) => {
   if (pageButton) {
     state.page = pageButton.dataset.page || pageButton.dataset.pageLink;
     document.getElementById("sidebar").classList.remove("open");
+    document.querySelectorAll(".topbar-popover").forEach((item) => { item.hidden = true; });
+    document.querySelectorAll("#notification-button, #profile-menu-button").forEach((item) => {
+      item.setAttribute("aria-expanded", "false");
+    });
     render();
   }
   const actionButton = target.closest("[data-action]");
@@ -568,6 +640,14 @@ document.addEventListener("click", (event) => {
   }
   const deleteButton = target.closest("[data-delete-type]");
   if (deleteButton) deleteEntry(deleteButton.dataset.deleteType, deleteButton.dataset.deleteId);
+  const editButton = target.closest("[data-edit-waste]");
+  if (editButton) openModal("edit-waste", editButton.dataset.editWaste);
+  if (!target.closest(".topbar-menu-wrap")) {
+    document.querySelectorAll(".topbar-popover").forEach((item) => { item.hidden = true; });
+    document.querySelectorAll("#notification-button, #profile-menu-button").forEach((item) => {
+      item.setAttribute("aria-expanded", "false");
+    });
+  }
 });
 
 document.addEventListener("submit", (event) => {
@@ -608,6 +688,7 @@ document.getElementById("menu-button").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open");
 });
 document.getElementById("signout-button").addEventListener("click", signOut);
+document.getElementById("topbar-signout").addEventListener("click", signOut);
 document.getElementById("modal-close").addEventListener("click", closeModal);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeModal();

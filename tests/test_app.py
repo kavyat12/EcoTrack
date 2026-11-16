@@ -95,6 +95,18 @@ class EcoTrackApiTests(unittest.TestCase):
         })
         self.assertEqual(status, 409)
 
+    def test_first_visit_prompts_for_account_registration(self):
+        status, _ = self.request("/api/auth/logout", "POST", {})
+        self.assertEqual(status, 200)
+        with app.db.connect_database() as connection:
+            connection.execute("DELETE FROM sessions")
+            connection.execute("DELETE FROM users")
+        self.cookie = None
+        status, response = self.request("/api/auth/me")
+        self.assertEqual(status, 200)
+        self.assertIsNone(response["user"])
+        self.assertTrue(response["registration_required"])
+
     def test_waste_carbon_recycling_and_analytics_flow(self):
         status, categories = self.request("/api/categories")
         self.assertEqual(status, 200)
@@ -110,6 +122,19 @@ class EcoTrackApiTests(unittest.TestCase):
         )
         self.assertEqual(status, 201)
         self.assertEqual(waste["recycled_kg"], 2.5)
+        status, edited = self.request(
+            f"/api/waste/{waste['id']}",
+            "PATCH",
+            {
+                "category_id": categories[1]["id"],
+                "weight_kg": 5,
+                "recycled_kg": 3,
+                "note": "Food scraps and packaging",
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(edited["category"], "Organic")
+        self.assertEqual(edited["weight_kg"], 5)
 
         status, carbon = self.request(
             "/api/carbon",
@@ -121,15 +146,15 @@ class EcoTrackApiTests(unittest.TestCase):
 
         status, dashboard = self.request("/api/dashboard")
         self.assertEqual(status, 200)
-        self.assertEqual(dashboard["summary"]["waste_kg"], 4)
-        self.assertEqual(dashboard["summary"]["recycled_kg"], 2.5)
+        self.assertEqual(dashboard["summary"]["waste_kg"], 5)
+        self.assertEqual(dashboard["summary"]["recycled_kg"], 3)
         self.assertEqual(dashboard["summary"]["carbon_kg"], 1.92)
         self.assertIsNotNone(dashboard["summary"]["sustainability_score"])
         self.assertEqual(len(dashboard["monthly"]), 6)
 
         status, recycling = self.request("/api/recycling")
         self.assertEqual(status, 200)
-        self.assertAlmostEqual(recycling["diversion_rate"], 62.5)
+        self.assertAlmostEqual(recycling["diversion_rate"], 60)
         self.assertTrue(recycling["guidance"])
         status, analytics = self.request("/api/analytics")
         self.assertEqual(status, 200)
@@ -225,6 +250,37 @@ class EcoTrackApiTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertEqual(profile["user"]["display_name"], "New Name")
+
+    def test_existing_unowned_community_records_are_kept_for_first_account(self):
+        with app.db.connect_database() as connection:
+            category_id = connection.execute(
+                "SELECT id FROM categories ORDER BY id LIMIT 1"
+            ).fetchone()["id"]
+            cursor = connection.execute(
+                """
+                INSERT INTO reports
+                    (category_id, title, location, description, urgency, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (category_id, "Existing neighborhood report", "Oak Street", "In the park", "low", app.utc_now()),
+            )
+            legacy_report_id = cursor.lastrowid
+            connection.execute("DELETE FROM sessions")
+            connection.execute("DELETE FROM users")
+        self.cookie = None
+        status, _ = self.request(
+            "/api/auth/register",
+            "POST",
+            {
+                "display_name": "First Account",
+                "email": "first@example.com",
+                "password": "a secure passphrase",
+            },
+        )
+        self.assertEqual(status, 201)
+        status, reports = self.request("/api/reports")
+        self.assertEqual(status, 200)
+        self.assertEqual([report["id"] for report in reports], [legacy_report_id])
 
     def test_auth_screen_and_dashboard_are_served(self):
         status, page = self.request("/")

@@ -169,7 +169,14 @@ class EcoTrackHandler(BaseHTTPRequestHandler):
             self.authenticate()
             if path == "/api/auth/me":
                 if self.current_user is None:
-                    self.send_json(200, {"user": None})
+                    with db.connect_database() as connection:
+                        has_accounts = connection.execute(
+                            "SELECT EXISTS(SELECT 1 FROM users LIMIT 1)"
+                        ).fetchone()[0]
+                    self.send_json(
+                        200,
+                        {"user": None, "registration_required": not bool(has_accounts)},
+                    )
                 else:
                     self.send_json(200, {"user": self.current_user})
                 return
@@ -258,6 +265,10 @@ class EcoTrackHandler(BaseHTTPRequestHandler):
             if path == "/api/profile":
                 self.update_profile(data)
                 return
+            waste_match = re.fullmatch(r"/api/waste/(\d+)", path)
+            if waste_match:
+                self.update_waste_entry(int(waste_match.group(1)), data)
+                return
             match = re.fullmatch(r"/api/(reports|collections)/(\d+)", path)
             if not match:
                 self.send_json(404, {"error": "Endpoint not found."})
@@ -313,6 +324,9 @@ class EcoTrackHandler(BaseHTTPRequestHandler):
             )
         salt, password_hash = hash_password(password)
         with db.connect_database() as connection:
+            is_first_account = connection.execute(
+                "SELECT COUNT(*) FROM users"
+            ).fetchone()[0] == 0
             cursor = connection.execute(
                 """
                 INSERT INTO users (email, display_name, password_salt, password_hash, created_at)
@@ -321,6 +335,14 @@ class EcoTrackHandler(BaseHTTPRequestHandler):
                 (email, display_name, salt, password_hash, utc_now()),
             )
             user = {"id": cursor.lastrowid, "email": email, "display_name": display_name}
+            if is_first_account:
+                connection.execute(
+                    "UPDATE reports SET user_id = ? WHERE user_id IS NULL", (user["id"],)
+                )
+                connection.execute(
+                    "UPDATE collections SET user_id = ? WHERE user_id IS NULL",
+                    (user["id"],),
+                )
             token = self.create_session(connection, user)
         self.send_session(user, token, 201)
 
@@ -816,6 +838,52 @@ class EcoTrackHandler(BaseHTTPRequestHandler):
                 (cursor.lastrowid,),
             ).fetchone()
         self.send_json(201, dict(row))
+
+    def update_waste_entry(self, entry_id, data):
+        category_id = data.get("category_id")
+        if not isinstance(category_id, int) or isinstance(category_id, bool):
+            raise ValueError("Choose a waste category.")
+        weight = bounded_number(data, "weight_kg", "Waste amount", 100_000)
+        recycled = data.get("recycled_kg")
+        if isinstance(recycled, bool) or not isinstance(recycled, (int, float)):
+            raise ValueError("Recycled amount must be a number.")
+        if not math.isfinite(recycled) or recycled < 0 or recycled > weight:
+            raise ValueError("Recycled amount must be between 0 and the total waste amount.")
+        note = data.get("note", "")
+        if not isinstance(note, str) or len(note.strip()) > 300:
+            raise ValueError("Notes must be 300 characters or fewer.")
+        with db.connect_database() as connection:
+            if not connection.execute(
+                "SELECT 1 FROM categories WHERE id = ?", (category_id,)
+            ).fetchone():
+                raise ValueError("Choose a valid waste category.")
+            cursor = connection.execute(
+                """
+                UPDATE waste_entries
+                SET category_id = ?, weight_kg = ?, recycled_kg = ?, note = ?
+                WHERE id = ? AND user_id = ?
+                """,
+                (
+                    category_id,
+                    weight,
+                    float(recycled),
+                    note.strip(),
+                    entry_id,
+                    self.current_user["id"],
+                ),
+            )
+            if cursor.rowcount == 0:
+                self.send_json(404, {"error": "Waste entry not found."})
+                return
+            row = connection.execute(
+                """
+                SELECT w.id, w.category_id, c.name AS category, c.color AS category_color,
+                       w.weight_kg, w.recycled_kg, w.note, w.created_at
+                FROM waste_entries w JOIN categories c ON c.id = w.category_id WHERE w.id = ?
+                """,
+                (entry_id,),
+            ).fetchone()
+        self.send_json(200, dict(row))
 
     def create_carbon_activity(self, data):
         activity_type = data.get("activity_type")

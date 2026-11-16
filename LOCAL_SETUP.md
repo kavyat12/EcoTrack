@@ -23,9 +23,9 @@ The app stores its SQLite database at `%LOCALAPPDATA%\EcoTrack\ecotrack.db` on W
 - Register, sign in/out, and update your name, email, and password. Passwords are salted and securely hashed; personal records are isolated per account.
 - Dashboard with a personal sustainability progress score, carbon estimate, waste and recycling totals, six-month charts, recent activity, and tailored recommendations.
 - Log, review, and delete categorized waste entries, including the amount recycled.
-- Estimate carbon emissions for car and bus travel, electricity, and air travel. Each estimate uses a visible average factor; actual emissions vary.
+- Estimate carbon emissions for car and bus travel, electricity, and air travel. Calculations multiply the entered quantity by the documented illustrative factors in `impact.py`: car 0.192 kg CO₂e/km, bus 0.105 kg CO₂e/km, electricity 0.400 kg CO₂e/kWh, and air travel 0.150 kg CO₂e/passenger-km. These example averages are not sourced or location-specific; verify a current local factor set before using results for formal reporting.
 - Review recycling guidance and track your diverted waste.
 - Explore analytics by month, material, and activity; export your personal records to CSV.
 - Continue to create neighborhood waste reports and manage collection schedules.
 
-The sustainability score is a personal progress indicator, not an official environmental rating. The first run creates five waste categories. Set `ECOTRACK_DATA_DIR` to use an isolated database while testing.
+The sustainability score is a personal progress indicator: up to 70 points come from monthly emissions (reduced linearly to zero at 100 kg CO₂e) and up to 30 points from the percentage of recorded waste recycled. It is not an official environmental rating. The first run creates five waste categories. Set `ECOTRACK_DATA_DIR` to use an isolated database while testing.

@@ -3,6 +3,7 @@ from datetime import date
 
 
 ACTIVITY_TYPES = {
+    # Illustrative averages; replace with a verified local factor set for formal reporting.
     "car": {"label": "Car travel", "unit": "km", "factor": 0.192},
     "bus": {"label": "Bus travel", "unit": "km", "factor": 0.105},
     "electricity": {"label": "Electricity", "unit": "kWh", "factor": 0.4},
@@ -74,7 +75,7 @@ def recommendations(month_emissions, diversion_rate, top_waste_category, has_act
             {
                 "title": "Look for a lower-carbon trip",
                 "detail": "For one short car journey this week, consider walking, cycling, carpooling, or transit.",
-                "action": "Log an activity",
+                "action": "Log a carbon activity",
             }
         )
     if not any(item["title"] == "Try a food-scrap plan" for item in ideas):
